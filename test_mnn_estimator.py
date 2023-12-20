@@ -72,10 +72,12 @@ class MNN_Estimator():
 
     def inverse_stft(self, stft):
         """Inverses stft to wave form"""
+        # stft_complex: B x F x (1 + L//hop_length)
         stft_complex = torch.view_as_complex(stft)
         pad = self.win_length // 2 + 1 - stft_complex.size(1)
+        # stft_complex: B x (win_length//2 + 1) x (1 + L//hop_length)
         stft_complex = F.pad(stft_complex, (0, 0, 0, pad))
-
+        # wav: B x L
         wav = torch.istft(stft_complex, self.win_length, hop_length=self.hop_length, center=True, window=self.win)
 
         return wav.detach()
@@ -86,19 +88,18 @@ class MNN_Estimator():
         Separates stereo wav into different tracks corresponding to different instruments
 
         Args:
-            wav (tensor): 2 x L
+            wav (tensor): C x L (C: Channel, L: Number of samples)
         """
 
-        # stft - 2 X F x L x 2
-        # stft_mag - 2 X F x L
+        # stft: C X F x (1 + L//hop_length) x 2 (F: Number of frequency bins)
+        # stft_mag: C X F x (1 + L//hop_length) (F: Number of frequency bins)
         stft, stft_mag = self.compute_stft(wav)
 
         L = stft.size(2)
 
-        # 1 x 2 x F x T
-        stft_mag = stft_mag.unsqueeze(-1).permute([3, 0, 1, 2])
-        stft_mag = pad_and_partition(stft_mag, self.T)  # B x 2 x F x T
-        stft_mag = stft_mag.transpose(2, 3)  # B x 2 x T x F
+        stft_mag = stft_mag.unsqueeze(-1).permute([3, 0, 1, 2]) # 1 x C x F x (1 + L//hop_length)
+        stft_mag = pad_and_partition(stft_mag, self.T)  # B x C x F x T (B: Batch, T: Number of time frames)
+        stft_mag = stft_mag.transpose(2, 3)  # B x C x T x F
 
         B = stft_mag.shape[0]
 
@@ -106,38 +107,21 @@ class MNN_Estimator():
         masks = []
         for interpreter, session in zip(self.interpreters, self.sessions):
             input_tensor = interpreter.getSessionInput(session)
+            interpreter.resizeTensor(input_tensor, (B, 2, 512, 1024))
+            interpreter.resizeSession(session)
             output_tensor = interpreter.getSessionOutput(session)
-            # Create a list to save the output data for all batches
-            
-            batch_data = []
 
-            # Process each batch
-            for i in range(B):
-                # Get the data for the current batch
-                input_data = stft_mag.numpy()[i:i+1]  # Keep the batch dimension as 1
+            tmp_input = MNN.Tensor([B, 2, 512, 1024], MNN.Halide_Type_Float, \
+                                stft_mag.numpy(), MNN.Tensor_DimensionType_Caffe)
 
-                # Convert the NumPy array to an MNN Tensor
-                tmp_input = MNN.Tensor((1, 2, 512, 1024), MNN.Halide_Type_Float, \
-                                    input_data, MNN.Tensor_DimensionType_Caffe)
+            input_tensor.copyFrom(tmp_input)
 
-                # Copy the data into the MNN Tensor
-                input_tensor.copyFrom(tmp_input)
+            interpreter.runSession(session)
 
-                # Perform inference
-                interpreter.runSession(session)
-
-                # Get the output data
-                tmp_output = MNN.Tensor((1, 2, 512, 1024), MNN.Halide_Type_Float, \
-                                        np.zeros((1, 2, 512, 1024)).astype(np.float32), MNN.Tensor_DimensionType_Caffe)
-                output_tensor.copyToHostTensor(tmp_output)
-
-                # Convert the output data for the current batch to a torch.Tensor
-                output_data = torch.tensor(tmp_output.getNumpyData(), dtype=torch.float32)
-                # Add the output Tensor for the current batch to the batches list
-                batch_data.append(output_data)
-
-            mask = torch.stack(batch_data).squeeze(dim=1)
-            
+            tmp_output = MNN.Tensor([B, 2, 512, 1024], MNN.Halide_Type_Float, \
+                                    np.zeros([B, 2, 512, 1024]).astype(np.float32), MNN.Tensor_DimensionType_Caffe)
+            output_tensor.copyToHostTensor(tmp_output)
+            mask = torch.tensor(tmp_output.getNumpyData(), dtype=torch.float32) # B x C x T x F
             masks.append(mask)
 
         # compute denominator
@@ -182,7 +166,7 @@ if __name__ == '__main__':
     for i in range(len(wavs)):
         fname = 'output/out_{}.wav'.format(i)
         print("\033[32m" + f'{fname}' + "\033[0m")
-        audio_data = wavs[i].detach().numpy().T
+        audio_data = wavs[i].numpy().T
         max_val = np.max(np.abs(audio_data))
         if max_val > 0:
             audio_data = audio_data / max_val
