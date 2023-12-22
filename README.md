@@ -2,18 +2,21 @@
 Spleeter implementation in MNN.
 
 ## Usage
-
-See `test_mnn_estimator.py` for the usage (`test_estimator.py` is an another implementation in PyTorch for the original model).
-Use script `convert2onnx.py` and MNN's convert tool (provided you have already compiled and installed MNN correctly)
+### Python
+See `python/test_mnn_estimator.py` for the usage (`python/test_estimator.py` is an another implementation in PyTorch for the original model).
+Use script `python/convert2onnx.py` and MNN's convert tool (provided you have already compiled and installed MNN correctly)
 ```
 ./MNNConvert -f ONNX --modelFile XXX.onnx --MNNModel XXX.mnn --bizCode biz
 ```
 to convert the original model in `checkpoints/2stems` to the MNN model.
 
+### C++
+TODO
+
 ## Note
 
 * I only tested with 2stems model, not sure if it works for other models.
-* There might be some bugs, the quality of output isn't as good as origin. See [output](./output) fore some results. If you find the reason, please send me a merge request. Thanks.
+* There might be some bugs, the quality of output isn't as good as origin. See `python/output` fore some results. If you find the reason, please send me a merge request. Thanks.
 
 ## Acknowledge
 * [Spleeter](https://github.com/deezer/spleeter)
