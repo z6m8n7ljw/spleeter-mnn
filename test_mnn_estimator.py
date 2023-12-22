@@ -1,29 +1,44 @@
 import math
 import librosa
 import soundfile
-import torch
-import torch.nn.functional as F
 import numpy as np
 import MNN
 import time
 
 
-def pad_and_partition(tensor, T):
+def pad_and_partition(array, T):
     """
     pads zero and partition tensor into segments of length T
 
     Args:
-        tensor(Tensor): BxCxFxL
+        array(ndarray): BxCxFxL
 
     Returns:
-        tensor of size (B*[L/T] x C x F x T)
+        array of size (B*[L/T] x C x F x T)
     """
-    old_size = tensor.size(3)
-    new_size = math.ceil(old_size/T) * T
-    tensor = F.pad(tensor, [0, new_size - old_size])
-    [b, c, t, f] = tensor.shape
+    old_size = array.shape[3]
+    new_size = math.ceil(old_size / T) * T
+    
+    pad_width = [(0, 0)] * len(array.shape)
+    pad_width[3] = (0, new_size - old_size)
+    array = np.pad(array, pad_width, mode='constant', constant_values=0)
+  
     split = new_size // T
-    return torch.cat(torch.split(tensor, T, dim=3), dim=0)
+
+    return np.concatenate(np.split(array, split, axis=3), axis=0)
+
+
+def istft(stft_complex, win_length, hop_length, window):
+    ifft_result = np.fft.irfft(stft_complex, n=win_length, axis=1)
+    ifft_result = ifft_result * window[:, np.newaxis]
+
+    time_array = np.zeros((ifft_result.shape[0], win_length + (ifft_result.shape[2] - 1) * hop_length))
+    for i in range(ifft_result.shape[2]):
+        start = i * hop_length
+        end = start + win_length
+        time_array[:, start:end] += ifft_result[:, :, i]
+
+    return time_array
 
 
 class MNN_Estimator():
@@ -33,10 +48,7 @@ class MNN_Estimator():
         self.T = 512
         self.win_length = 4096
         self.hop_length = 1024
-        self.win = torch.nn.Parameter(
-            torch.hann_window(self.win_length),
-            requires_grad=False
-        )
+        self.win = np.hanning(self.win_length)
 
         # filter
         self.sessions = []
@@ -57,30 +69,40 @@ class MNN_Estimator():
         Computes stft feature from wav
 
         Args:
-            wav (Tensor): B x L
+            wav(ndarray): C x L
         """
-        stft = torch.stft(
-            wav, self.win_length, hop_length=self.hop_length, window=self.win, center=True, return_complex=False, pad_mode='constant')
-
-        # only keep freqs smaller than self.F
-        stft = stft[:, :self.F, :, :]
-        real = stft[:, :, :, 0]
-        im = stft[:, :, :, 1]
-        mag = torch.sqrt(real ** 2 + im ** 2)
-        return stft, mag
+        stft_channels = []
+        mag_channels = []
+        for i in range(wav.shape[0]):  # Iterate over channels
+            stft_mono = librosa.stft(wav[i], n_fft=self.win_length, hop_length=self.hop_length, window=self.win, center=True)
+            # only keep freqs smaller than self.F
+            stft_real = stft_mono.real[:self.F, :]  
+            stft_imag = stft_mono.imag[:self.F, :]
+            stft = np.stack((stft_real, stft_imag), axis=-1) 
+            mag = np.abs(stft_mono)[:self.F, :]
+            stft_channels.append(stft)
+            mag_channels.append(mag)
+        # Convert the list of numpy arrays to a single numpy array with the correct shape
+        stft_stereo = np.stack(stft_channels, axis=0) 
+        mag_stereo = np.stack(mag_channels, axis=0)
+        return stft_stereo, mag_stereo
 
 
     def inverse_stft(self, stft):
         """Inverses stft to wave form"""
+        # stft: B x F x (1 + L//hop_length) x 2
         # stft_complex: B x F x (1 + L//hop_length)
-        stft_complex = torch.view_as_complex(stft)
-        pad = self.win_length // 2 + 1 - stft_complex.size(1)
-        # stft_complex: B x (win_length//2 + 1) x (1 + L//hop_length)
-        stft_complex = F.pad(stft_complex, (0, 0, 0, pad))
-        # wav: B x L
-        wav = torch.istft(stft_complex, self.win_length, hop_length=self.hop_length, center=True, window=self.win)
+        real = stft[..., 0]
+        im = stft[..., 1]
+        stft_complex = real + 1j * im
 
-        return wav.detach()
+        pad = self.win_length // 2 + 1 - stft_complex.shape[1]
+        # stft_complex: B x (win_length//2 + 1) x (1 + L//hop_length)
+        stft_complex = np.pad(stft_complex, pad_width=[(0, 0), (0, pad), (0, 0)], mode='constant', constant_values=(0, 0))
+        # wav: B x L
+        wav = istft(stft_complex, self.win_length, self.hop_length, self.win)
+
+        return wav
     
 
     def separate(self, wav):
@@ -88,18 +110,19 @@ class MNN_Estimator():
         Separates stereo wav into different tracks corresponding to different instruments
 
         Args:
-            wav (tensor): C x L (C: Channel, L: Number of samples)
+            wav(ndarray): C x L (C: Channels, L: Number of samples)
         """
 
         # stft: C X F x (1 + L//hop_length) x 2 (F: Number of frequency bins)
         # stft_mag: C X F x (1 + L//hop_length) (F: Number of frequency bins)
         stft, stft_mag = self.compute_stft(wav)
 
-        L = stft.size(2)
+        L = stft.shape[2]
 
-        stft_mag = stft_mag.unsqueeze(-1).permute([3, 0, 1, 2]) # 1 x C x F x (1 + L//hop_length)
+        stft_mag = np.expand_dims(stft_mag, axis=-1)
+        stft_mag = np.transpose(stft_mag, axes=(3, 0, 1, 2)) # 1 x C x F x (1 + L//hop_length)
         stft_mag = pad_and_partition(stft_mag, self.T)  # B x C x F x T (B: Batch, T: Number of time frames)
-        stft_mag = stft_mag.transpose(2, 3)  # B x C x T x F
+        stft_mag = np.transpose(stft_mag, axes=(0, 1, 3, 2))  # B x C x T x F
 
         B = stft_mag.shape[0]
 
@@ -112,7 +135,7 @@ class MNN_Estimator():
             output_tensor = interpreter.getSessionOutput(session)
 
             tmp_input = MNN.Tensor([B, 2, 512, 1024], MNN.Halide_Type_Float, \
-                                stft_mag.numpy(), MNN.Tensor_DimensionType_Caffe)
+                                stft_mag, MNN.Tensor_DimensionType_Caffe)
 
             input_tensor.copyFrom(tmp_input)
 
@@ -121,36 +144,35 @@ class MNN_Estimator():
             tmp_output = MNN.Tensor([B, 2, 512, 1024], MNN.Halide_Type_Float, \
                                     np.zeros([B, 2, 512, 1024]).astype(np.float32), MNN.Tensor_DimensionType_Caffe)
             output_tensor.copyToHostTensor(tmp_output)
-            mask = torch.tensor(tmp_output.getNumpyData(), dtype=torch.float32) # B x C x T x F
+            mask = np.copy(tmp_output.getNumpyData()) # B x C x T x F
             masks.append(mask)
 
         # compute denominator
-        mask_sum = sum([m ** 2 for m in masks])
+        mask_sum = np.sum([mask ** 2 for mask in masks], axis=0)
         mask_sum += 1e-10
 
         wavs = []
         for mask in masks:
-            mask = (mask ** 2 + 1e-10/2)/(mask_sum)
-            mask = mask.transpose(2, 3)  # B x 2 X F x T
+            mask = (mask ** 2 + 1e-10 / 2) / mask_sum
+            mask = np.transpose(mask, (0, 1, 3, 2))  # B x 2 X F x T
 
-            mask = torch.cat(
-                torch.split(mask, 1, dim=0), dim=3)
-
-            mask = mask.squeeze(0)[:,:,:L].unsqueeze(-1) # 2 x F x L x 1
-            stft_masked = stft *  mask
+            splits = np.split(mask, indices_or_sections=mask.shape[0], axis=0)
+            mask = np.concatenate(splits, axis=3)
+            
+            mask = mask.squeeze(axis=0)[:, :, :L, np.newaxis] # 2 x F x L x 1
+            stft_masked = stft * mask
             wav_masked = self.inverse_stft(stft_masked)
 
             wavs.append(wav_masked)
 
         return wavs
-    
+
 
 if __name__ == '__main__':
     sr = 44100
     es = MNN_Estimator()
 
     wav, _ = librosa.load('./coc.wav', mono=False, res_type='kaiser_fast', sr=sr)
-    wav = torch.Tensor(wav)
 
     audio_duration = wav.shape[1] / sr
 
@@ -166,9 +188,6 @@ if __name__ == '__main__':
     for i in range(len(wavs)):
         fname = 'output/out_{}.wav'.format(i)
         print("\033[32m" + f'{fname}' + "\033[0m")
-        audio_data = wavs[i].numpy().T
-        max_val = np.max(np.abs(audio_data))
-        if max_val > 0:
-            audio_data = audio_data / max_val
+        audio_data = wavs[i].T
         soundfile.write(fname, audio_data, sr, "PCM_16")
 
