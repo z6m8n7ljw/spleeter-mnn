@@ -1,21 +1,31 @@
-#ifndef Estimator_HPP
-#define Estimator_HPP
+#ifndef ESTIMATOR_HPP
+#define ESTIMATOR_HPP
 
-#include "MNNDefine.h"
-#include "Interpreter.hpp"
-#include "Tensor.hpp"
-#include <memory>
 #include <vector>
+#include <string>
+#include <cmath>
+#include <complex>
+#include "Eigen/Dense"
+#include "unsupported/Eigen/CXX11/Tensor"
+#include "MNN/MNNDefine.h"
+#include "MNN/Interpreter.hpp"
+#include "MNN/Tensor.hpp"
 
 class Estimator {
 public:
     Estimator();
-    std::vector<std::shared_ptr<MNN::Tensor>> separate(const std::vector<float>& stft_mag);
-
+    ~Estimator();
+    std::pair<Eigen::Tensor<float, 4, Eigen::RowMajor>, Eigen::Tensor<float, 3, Eigen::RowMajor>> compute_stft(const Eigen::Tensor<float, 2, Eigen::RowMajor>& wav);
+    Eigen::Tensor<float, 2, Eigen::RowMajor> compute_istft(const Eigen::Tensor<float, 4, Eigen::RowMajor>& stft);
+    std::vector<Eigen::Tensor<float, 2, Eigen::RowMajor>> separate(const Eigen::Tensor<float, 2, Eigen::RowMajor>& wav);
 private:
-    int F, T, win_length, hop_length;
-    std::vector<std::shared_ptr<MNN::Interpreter>> interpreters;
-    std::vector<MNN::Session*> sessions;
+    int F;
+    int T;
+    int win_length;
+    int hop_length;
+    Eigen::VectorXf win;
+    std::vector<MNN::Interpreter *> interpreters;
+    std::vector<MNN::Session *> sessions;
 };
 
-#endif // Estimator_HPP
+#endif // ESTIMATOR_HPP

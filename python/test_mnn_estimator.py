@@ -3,8 +3,30 @@ import librosa
 import soundfile
 import numpy as np
 import MNN
+import os
 import time
 
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sub_dir = os.path.dirname(os.path.abspath(__file__))
+
+
+def print_helper(tensor: np.ndarray, max_elements_per_dim: list):
+    dims = tensor.shape
+    print("Tensor dimensions:", dims)
+
+    # Define a recursive function to traverse and print the values of the tensor
+    def print_values(indices):
+        if len(indices) == len(dims):
+            # Print the tensor value at the current index
+            print(f"[{', '.join(map(str, indices))}]: {tensor[tuple(indices)]}")
+        else:
+            # Traverse the current dimension
+            current_dim = len(indices)
+            for i in range(min(dims[current_dim], max_elements_per_dim[current_dim])):
+                print_values(indices + [i])
+
+    # Start the recursive traversal
+    print_values([])
 
 def pad_and_partition(array, T):
     """
@@ -28,21 +50,8 @@ def pad_and_partition(array, T):
     return np.concatenate(np.split(array, split, axis=3), axis=0)
 
 
-def istft(stft_complex, win_length, hop_length, window):
-    ifft_result = np.fft.irfft(stft_complex, n=win_length, axis=1)
-    ifft_result = ifft_result * window[:, np.newaxis]
-
-    time_array = np.zeros((ifft_result.shape[0], win_length + (ifft_result.shape[2] - 1) * hop_length))
-    for i in range(ifft_result.shape[2]):
-        start = i * hop_length
-        end = start + win_length
-        time_array[:, start:end] += ifft_result[:, :, i]
-
-    return time_array
-
-
 class MNN_Estimator():
-    def __init__(self,):
+    def __init__(self):
         # stft config
         self.F = 1024
         self.T = 512
@@ -54,12 +63,12 @@ class MNN_Estimator():
         self.sessions = []
         self.interpreters = []
 
-        interpreter = MNN.Interpreter('./MNN/vocal.mnn')
+        interpreter = MNN.Interpreter(os.path.join(root_dir, 'models/vocal.mnn'))
         self.interpreters.append(interpreter)
         session = interpreter.createSession()
         self.sessions.append(session)
 
-        interpreter = MNN.Interpreter('./MNN/accompaniment.mnn')
+        interpreter = MNN.Interpreter(os.path.join(root_dir, 'models/accompaniment.mnn'))
         self.interpreters.append(interpreter)
         session = interpreter.createSession()
         self.sessions.append(session)
@@ -90,17 +99,23 @@ class MNN_Estimator():
 
     def compute_istft(self, stft):
         """Inverses stft to wave form"""
-        # stft: B x F x (1 + L//hop_length) x 2
-        # stft_complex: B x F x (1 + L//hop_length)
+        # stft: B x F x (1 + L // hop_length) x 2
         real = stft[..., 0]
         im = stft[..., 1]
+        # stft_complex: B x F x (1 + L // hop_length)
         stft_complex = real + 1j * im
 
         pad = self.win_length // 2 + 1 - stft_complex.shape[1]
-        # stft_complex: B x (win_length//2 + 1) x (1 + L//hop_length)
+        # stft_complex: B x (win_length // 2 + 1) x (1 + L // hop_length)
         stft_complex = np.pad(stft_complex, pad_width=[(0, 0), (0, pad), (0, 0)], mode='constant', constant_values=(0, 0))
+        ifft_result = np.fft.irfft(stft_complex, n=self.win_length, axis=1)
+        ifft_result = ifft_result * self.win[:, np.newaxis]
         # wav: B x L
-        wav = istft(stft_complex, self.win_length, self.hop_length, self.win)
+        wav = np.zeros((ifft_result.shape[0], self.win_length + (ifft_result.shape[2] - 1) * self.hop_length))
+        for i in range(ifft_result.shape[2]):
+            start = i * self.hop_length
+            end = start + self.win_length
+            wav[:, start:end] += ifft_result[:, :, i]
 
         return wav
     
@@ -113,16 +128,16 @@ class MNN_Estimator():
             wav(ndarray): C x L (C: Channels, L: Number of samples)
         """
 
-        # stft: C X F x (1 + L//hop_length) x 2 (F: Number of frequency bins)
-        # stft_mag: C X F x (1 + L//hop_length) (F: Number of frequency bins)
+        # stft: C x F x (1 + L // hop_length) x 2
+        # stft_mag: C x F x (1 + L // hop_length)
         stft, stft_mag = self.compute_stft(wav)
 
         L = stft.shape[2]
 
         stft_mag = np.expand_dims(stft_mag, axis=-1)
-        stft_mag = np.transpose(stft_mag, axes=(3, 0, 1, 2)) # 1 x C x F x (1 + L//hop_length)
-        stft_mag = pad_and_partition(stft_mag, self.T)  # B x C x F x T (B: Batch, T: Number of time frames)
-        stft_mag = np.transpose(stft_mag, axes=(0, 1, 3, 2))  # B x C x T x F
+        stft_mag = np.transpose(stft_mag, axes=(3, 0, 1, 2))
+        stft_mag = pad_and_partition(stft_mag, self.T)
+        stft_mag = np.transpose(stft_mag, axes=(0, 1, 3, 2))
 
         B = stft_mag.shape[0]
 
@@ -144,7 +159,7 @@ class MNN_Estimator():
             tmp_output = MNN.Tensor([B, 2, 512, 1024], MNN.Halide_Type_Float, \
                                     np.zeros([B, 2, 512, 1024]).astype(np.float32), MNN.Tensor_DimensionType_Caffe)
             output_tensor.copyToHostTensor(tmp_output)
-            mask = np.copy(tmp_output.getNumpyData()) # B x C x T x F
+            mask = np.copy(tmp_output.getNumpyData())  # B x C x T x F
             masks.append(mask)
 
         # compute denominator
@@ -154,12 +169,12 @@ class MNN_Estimator():
         wavs = []
         for mask in masks:
             mask = (mask ** 2 + 1e-10 / 2) / mask_sum
-            mask = np.transpose(mask, (0, 1, 3, 2))  # B x 2 X F x T
+            mask = np.transpose(mask, (0, 1, 3, 2))  # B x 2 x F x T
 
             splits = np.split(mask, indices_or_sections=mask.shape[0], axis=0)
             mask = np.concatenate(splits, axis=3)
             
-            mask = mask.squeeze(axis=0)[:, :, :L, np.newaxis] # 2 x F x L x 1
+            mask = mask.squeeze(axis=0)[:, :, :L, np.newaxis]  # 2 x F x L x 1
             stft_masked = stft * mask
             wav_masked = self.compute_istft(stft_masked)
 
@@ -172,7 +187,7 @@ if __name__ == '__main__':
     sr = 44100
     es = MNN_Estimator()
 
-    wav, _ = librosa.load('./coc.wav', mono=False, res_type='kaiser_fast', sr=sr)
+    wav, _ = librosa.load(os.path.join(root_dir, 'audio/coc.wav'), mono=False, res_type='kaiser_fast', sr=sr)
 
     audio_duration = wav.shape[1] / sr
 
@@ -183,10 +198,10 @@ if __name__ == '__main__':
     real_time_factor = round(inference_time / audio_duration, 6)
 
     print(f"Inference time: {inference_time} seconds")
-    print(f"Real-time factor: {real_time_factor} seconds")
+    print(f"Real-time factor: {round(1.0 / real_time_factor)} : 1")
 
     for i in range(len(wavs)):
-        fname = 'output/out_{}.wav'.format(i)
+        fname = os.path.join(sub_dir, 'output/out_{}.wav').format(i)
         print("\033[32m" + f'{fname}' + "\033[0m")
         audio_data = wavs[i].T
         soundfile.write(fname, audio_data, sr, "PCM_16")

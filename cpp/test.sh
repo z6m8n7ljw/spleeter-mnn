@@ -6,7 +6,8 @@ set +x
 rm -rf build
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make -j4
+cmake ..
+make -j8
 
-./spleeter-cpp
+git_root=$(git rev-parse --show-toplevel)
+./spleeter-cpp $git_root/audio/coc.wav
