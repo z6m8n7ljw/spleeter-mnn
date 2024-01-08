@@ -1,9 +1,0 @@
-hw.cpufamily: 458787763 , size = 4
-The device support i8sdot:1, support fp16:1, support i8mm: 0
-Start to Convert Other Model Format To MNN Model..., target version: 2.8
-[17:14:05] /Users/jerry/Documents/MNN/tools/converter/source/onnx/onnxConverter.cpp:46: ONNX Model ir version: 8
-[17:14:05] /Users/jerry/Documents/MNN/tools/converter/source/onnx/onnxConverter.cpp:47: ONNX Model opset version: 17
-Start to Optimize the MNN Net...
-inputTensors : [ onnx::Pad_0, ]
-outputTensors: [ 379, ]
-Converted Success!

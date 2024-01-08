@@ -2,8 +2,11 @@ import numpy as np
 import librosa
 import soundfile
 import torch
-
+import os
 from spleeter.estimator import Estimator
+
+sub_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 if __name__ == '__main__':
     sr = 44100
@@ -17,10 +20,13 @@ if __name__ == '__main__':
 
     # normalize audio
     # wav_torch = wav / (wav.max() + 1e-8)
+    output_dir = os.path.join(sub_dir, 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     wavs = es.separate(wav)
     for i in range(len(wavs)):
-        fname = 'output/out_{}.wav'.format(i)
+        fname = os.path.join(sub_dir, 'output/out_{}.wav').format(i)
         print('Writing ',fname)
         soundfile.write(fname, wavs[i].cpu().detach().numpy().T, sr, "PCM_16")
         # write_wav(fname, np.asfortranarray(wavs[i].squeeze().numpy()), sr)

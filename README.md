@@ -19,7 +19,7 @@ sh test.sh
 ## Note
 
 * I only tested with 2stems model, not sure if it works for other models.
-* There might be some bugs, the quality of output isn't as good as origin. See `python/output` fore some results. If you find the reason, please send me a merge request. Thanks.
+* There might be some bugs, the quality of output isn't as good as origin. See `python/output` for some results. If you find the reason, please send me a merge request. Thanks.
 
 ## Acknowledge
 * [Spleeter](https://github.com/deezer/spleeter)

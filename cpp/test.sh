@@ -10,4 +10,4 @@ cmake ..
 make -j8
 
 git_root=$(git rev-parse --show-toplevel)
-./spleeter-cpp $git_root/audio/coc.wav
+./spleeter-cpp $git_root/audio/coc_s16.pcm
