@@ -77,35 +77,39 @@ static Eigen::Tensor<float, 4, Eigen::RowMajor> pad_and_partition(const Eigen::T
     return result;
 }
 
-Estimator::Estimator() : F(1024), T(512), win_length(4096), hop_length(1024) {
+Estimator::Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, bool& success) : F(1024), T(512), win_length(4096), hop_length(1024) {
     this->win = periodicHanningWindow(this->win_length);
 
     MNN::Interpreter* interpreter = nullptr;
     MNN::Session* session = nullptr;
 
     // Load vocal model and create session
-    interpreter = MNN::Interpreter::createFromFile("../../models/vocal.mnn");
+    interpreter = MNN::Interpreter::createFromFile(vocal_model_path.c_str());
     if (!interpreter) {
-        throw std::runtime_error("Failed to load vocal model.");
+        success = false;
+        return;
     }
     this->interpreters.push_back(interpreter);
     MNN::ScheduleConfig config_vocal;
     session = interpreter->createSession(config_vocal);
     if (!session) {
-        throw std::runtime_error("Failed to create session for vocal model.");
+        success = false;
+        return;
     }
     this->sessions.push_back(session);
 
     // Load accompaniment model and create session
-    interpreter = MNN::Interpreter::createFromFile("../../models/accompaniment.mnn");
+    interpreter = MNN::Interpreter::createFromFile(accompaniment_model_path.c_str());
     if (!interpreter) {
-        throw std::runtime_error("Failed to load accompaniment model.");
+        success = false;
+        return;
     }
     this->interpreters.push_back(interpreter);
     MNN::ScheduleConfig config_accompaniment;
     session = interpreter->createSession(config_accompaniment);
     if (!session) {
-        throw std::runtime_error("Failed to create session for accompaniment model.");
+        success = false;
+        return;
     }
     this->sessions.push_back(session);
 }

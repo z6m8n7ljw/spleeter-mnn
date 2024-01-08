@@ -19,14 +19,17 @@ enum AudioDataFormat {
 };
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        cerr << red << "Usage: " << argv[0] << " <input_file_path>" << reset << endl;
+    if (argc != 4) {
+        std::cerr << "Usage: " << argv[0] << " <input_file_path> <vocal_model_path> <accompaniment_model_path>" << std::endl;
         return -1;
     }
 
     string input_file_path = argv[1];
+    std::string vocal_model_path = argv[2];
+    std::string accompaniment_model_path = argv[3];
+
     SF_INFO sfinfo;
-    sfinfo.format = SF_FORMAT_RAW | SF_FORMAT_PCM_16; // SF_FORMAT_FLOAT;
+    sfinfo.format = SF_FORMAT_RAW | SF_FORMAT_FLOAT; // SF_FORMAT_PCM_16;
     sfinfo.channels = 2;
     sfinfo.samplerate = 44100;
     SNDFILE* infile = sf_open(input_file_path.c_str(), SFM_READ, &sfinfo);
@@ -64,7 +67,7 @@ int main(int argc, char* argv[]) {
         vector<short> interleaved_input(sfinfo.frames * sfinfo.channels);
         sf_count_t num_samples_read = sf_readf_short(infile, interleaved_input.data(), sfinfo.frames);
         if (num_samples_read != sfinfo.frames) {
-            cerr << "Error reading audio data." << endl;
+            cerr << red << "Error reading audio data."  << reset << endl;
             sf_close(infile);
             return -1;
         }
@@ -76,7 +79,7 @@ int main(int argc, char* argv[]) {
         vector<float> interleaved_input(sfinfo.frames * sfinfo.channels);
         sf_count_t num_samples_read = sf_readf_float(infile, interleaved_input.data(), sfinfo.frames);
         if (num_samples_read != sfinfo.frames) {
-            cerr << "Error reading audio data." << endl;
+            cerr << red << "Error reading audio data." << reset << endl;
             sf_close(infile);
             return -1;
         }        
@@ -92,7 +95,12 @@ int main(int argc, char* argv[]) {
     double audio_duration = static_cast<double>(sfinfo.frames) / sfinfo.samplerate;
     auto start_time = chrono::high_resolution_clock::now();
 
-    Estimator es;
+    bool isInit = true;
+    Estimator es(vocal_model_path, accompaniment_model_path, isInit);
+    if (!isInit) {
+        cout << red << "Failed to initialize Estimator" << reset << endl;
+        return -1;
+    }
     vector<Tensor<float, 2, RowMajor>> out_buffer = es.separate(in_buffer);
 
     auto end_time = chrono::high_resolution_clock::now();
