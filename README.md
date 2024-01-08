@@ -11,7 +11,10 @@ Use script `python/convert2onnx.py` and MNN's convert tool (provided you have al
 to convert the original model in `checkpoints/2stems` to the MNN model.
 
 ### C++
-TODO
+C++ implementation is an another transcript of Python implementation. It uses `Eigen::Tensor` to replace the `ndarray`.
+```
+sh test.sh
+```
 
 ## Note
 

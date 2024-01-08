@@ -200,6 +200,10 @@ if __name__ == '__main__':
     print(f"Inference time: {inference_time} seconds")
     print(f"Real-time factor: {round(1.0 / real_time_factor)} : 1")
 
+    output_dir = os.path.join(sub_dir, 'output')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     for i in range(len(wavs)):
         fname = os.path.join(sub_dir, 'output/out_{}.wav').format(i)
         print("\033[32m" + f'{fname}' + "\033[0m")
