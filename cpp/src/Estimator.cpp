@@ -77,8 +77,10 @@ static Eigen::Tensor<float, 4, Eigen::RowMajor> pad_and_partition(const Eigen::T
     return result;
 }
 
-Estimator::Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, bool& success) : F(1024), T(512), win_length(4096), hop_length(1024) {
+Estimator::Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, const SignalInfo in_signal, bool& success) : F(1024), T(512), win_length(4096), hop_length(1024) {
     this->win = periodicHanningWindow(this->win_length);
+
+    this->signal_info = in_signal;
 
     MNN::Interpreter* interpreter = nullptr;
     MNN::Session* session = nullptr;
@@ -205,8 +207,35 @@ Eigen::Tensor<float, 2, Eigen::RowMajor> Estimator::compute_istft(const Eigen::T
     return wavs;
 }
 
-std::vector<Eigen::Tensor<float, 2, Eigen::RowMajor>> Estimator::separate(const Eigen::Tensor<float, 2, Eigen::RowMajor>& wav) {
-    auto stft_result = compute_stft(wav);
+size_t Estimator::addFrames(char *in, size_t size) {
+    if (this->signal_info.data_format == PCM_16BIT) {
+        short *wav = reinterpret_cast<short*>(in);
+        Eigen::Tensor<float, 2, Eigen::RowMajor> wav_float;
+        size_t num_frames = size / sizeof(short);
+        long num_samples = num_frames / this->signal_info.channels;
+        this->wav.resize(this->signal_info.channels, num_samples);
+        for (size_t i = 0; i < num_samples; ++i) {
+            wav_float(0, i) = wav[this->signal_info.channels * i] / static_cast<float>(INT16_MAX);
+            wav_float(1, i) = wav[this->signal_info.channels * i + 1] / static_cast<float>(INT16_MAX);
+        }
+        this->wav = wav_float;
+    } else if (this->signal_info.data_format == PCM_FLOAT32) {
+        float *wav = reinterpret_cast<float*>(in);
+        size_t num_frames = size / sizeof(float);
+        long num_samples = num_frames / this->signal_info.channels;
+        this->wav.resize(this->signal_info.channels, num_samples);
+        for (size_t i = 0; i < num_samples; ++i) {
+            this->wav(0, i) = wav[this->signal_info.channels * i];
+            this->wav(1, i) = wav[this->signal_info.channels * i + 1];
+        }
+    }
+    size_t wav_size = this->wav.dimension(1);
+
+    return wav_size;
+}
+
+size_t Estimator::separate(char **out_1, char **out_2) {
+    auto stft_result = compute_stft(this->wav);
     auto stft = stft_result.first;
     auto stft_mag = stft_result.second;
 
@@ -289,5 +318,39 @@ std::vector<Eigen::Tensor<float, 2, Eigen::RowMajor>> Estimator::separate(const 
         wavs.push_back(wav_masked);
     }
 
-    return wavs;
+    size_t num_samples = wavs[0].dimension(1);
+    size_t size = this->signal_info.channels * num_samples * (this->signal_info.data_format == PCM_16BIT ? sizeof(short) : sizeof(float));
+    if (this->signal_info.data_format == PCM_16BIT) {
+        short *wav_1 = new short[this->signal_info.channels * num_samples];
+        short *wav_2 = new short[this->signal_info.channels * num_samples];
+        for (size_t j = 0; j < num_samples; ++j) {
+            wav_1[this->signal_info.channels * j] = static_cast<short>(wavs[0](0, j) *  INT16_MAX);
+            wav_1[this->signal_info.channels * j + 1] = static_cast<short>(wavs[0](1, j) *  INT16_MAX);
+            wav_2[this->signal_info.channels * j] = static_cast<short>(wavs[1](0, j) *  INT16_MAX);
+            wav_2[this->signal_info.channels * j + 1] = static_cast<short>(wavs[1](1, j) *  INT16_MAX);
+        }
+        *out_1 = (char *)malloc(size * sizeof(char));
+        memcpy(*out_1, wav_1, size);
+        delete[] wav_1;
+        *out_2 = (char *)malloc(size * sizeof(char));
+        memcpy(*out_2, wav_2, size);
+        delete[] wav_2;
+    } else if (this->signal_info.data_format == PCM_FLOAT32) {
+        float *wav_1 = new float[this->signal_info.channels * num_samples];
+        float *wav_2 = new float[this->signal_info.channels * num_samples];
+        for (size_t j = 0; j < num_samples; ++j) {
+            wav_1[this->signal_info.channels * j] = wavs[0](0, j);
+            wav_1[this->signal_info.channels * j + 1] = wavs[0](1, j);
+            wav_2[this->signal_info.channels * j] = wavs[1](0, j);
+            wav_2[this->signal_info.channels * j + 1] = wavs[1](1, j);
+        }
+        *out_1 = new char[size];
+        memcpy(*out_1, wav_1, size);
+        delete[] wav_1;
+        *out_2 = new char[size];
+        memcpy(*out_2, wav_2, size);
+        delete[] wav_2;
+    }
+
+    return size;
 }
