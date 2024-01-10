@@ -110,3 +110,6 @@ models/*.onnx
 models/*.mnn
 
 **/.DS_Store
+
+# output audio
+python/output/*.wav

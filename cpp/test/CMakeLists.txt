@@ -55,9 +55,6 @@ endif()
 
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
-find_package(PkgConfig)
-pkg_check_modules(SNDFILE REQUIRED sndfile)
-
 if(NOT LIB_DIR)
     set(LIB_DIR ${CMAKE_SOURCE_DIR}/../)
 endif()
@@ -69,11 +66,11 @@ endif()
 
 set(LIB_AUDIO_SEPARATION audio-separation)
 
-include_directories(${LIB_DIR}/include ${SNDFILE_INCLUDE_DIRS})
-link_directories(${LIB_DIR}/lib ${SNDFILE_LIBRARY_DIRS})
+include_directories(${LIB_DIR}/include)
+link_directories(${LIB_DIR}/lib)
 
 if(ENABLE_TESTING AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Android" AND NOT IOS)
     add_executable(test-audio-separation test.cpp)
-    target_link_libraries(test-audio-separation ${LIB_AUDIO_SEPARATION} ${SNDFILE_LIBRARIES})
+    target_link_libraries(test-audio-separation ${LIB_AUDIO_SEPARATION})
 endif()
 
