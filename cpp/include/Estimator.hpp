@@ -32,7 +32,7 @@ typedef struct SignalInfoT {
 
 class Estimator {
 public:
-    Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, const SignalInfo in_signal, bool& success);
+    Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, const SignalInfo in_signal);
     ~Estimator();
     std::pair<Eigen::Tensor<float, 4, Eigen::RowMajor>, Eigen::Tensor<float, 3, Eigen::RowMajor>> compute_stft(const Eigen::Tensor<float, 2, Eigen::RowMajor>& wav);
     Eigen::Tensor<float, 2, Eigen::RowMajor> compute_istft(const Eigen::Tensor<float, 4, Eigen::RowMajor>& stft);

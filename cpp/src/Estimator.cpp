@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdexcept>
 #include <functional>
 #include "Estimator.hpp"
 #include "Stft.hpp"
@@ -77,9 +78,8 @@ static Eigen::Tensor<float, 4, Eigen::RowMajor> pad_and_partition(const Eigen::T
     return result;
 }
 
-Estimator::Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, const SignalInfo in_signal, bool& success) : F(1024), T(512), win_length(4096), hop_length(1024) {
+Estimator::Estimator(const std::string& vocal_model_path, const std::string& accompaniment_model_path, const SignalInfo in_signal) : F(1024), T(512), win_length(4096), hop_length(1024) {
     this->win = periodicHanningWindow(this->win_length);
-
     this->signal_info = in_signal;
 
     MNN::Interpreter* interpreter = nullptr;
@@ -88,30 +88,26 @@ Estimator::Estimator(const std::string& vocal_model_path, const std::string& acc
     // Load vocal model and create session
     interpreter = MNN::Interpreter::createFromFile(vocal_model_path.c_str());
     if (!interpreter) {
-        success = false;
-        return;
+        throw std::runtime_error("Failed to load vocal model.");
     }
     this->interpreters.push_back(interpreter);
     MNN::ScheduleConfig config_vocal;
     session = interpreter->createSession(config_vocal);
     if (!session) {
-        success = false;
-        return;
+        throw std::runtime_error("Failed to create session for vocal model.");
     }
     this->sessions.push_back(session);
 
     // Load accompaniment model and create session
     interpreter = MNN::Interpreter::createFromFile(accompaniment_model_path.c_str());
     if (!interpreter) {
-        success = false;
-        return;
+        throw std::runtime_error("Failed to load accompaniment model.");
     }
     this->interpreters.push_back(interpreter);
     MNN::ScheduleConfig config_accompaniment;
     session = interpreter->createSession(config_accompaniment);
     if (!session) {
-        success = false;
-        return;
+        throw std::runtime_error("Failed to create session for accompaniment model.");
     }
     this->sessions.push_back(session);
 }

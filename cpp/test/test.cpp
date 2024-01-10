@@ -69,26 +69,26 @@ int main(int argc, char* argv[]) {
         cerr << red << "Error reading input file" << reset << endl;
         return -1;
     }
-
     auto start_time = chrono::high_resolution_clock::now();
-
     // Initialize Estimator
+    Estimator *es = nullptr;
     SignalInfo in_signal = {SAMPLE_RATE, CHANNELS, PCM_FORMAT};
-    bool isInit = true;
-    Estimator es(vocal_model_path, accompaniment_model_path, in_signal, isInit);
-    if (!isInit) {
-        cout << red << "Failed to initialize Estimator" << reset << endl;
+    try {
+        es = new Estimator(vocal_model_path, accompaniment_model_path, in_signal);
+    } catch (const runtime_error& e) {
+        cerr << red << "Failed to initialize Estimator: " << e.what() << reset << endl;
         return -1;
     }
 
     // Separate channels
-    size_t num_samples = es.addFrames(in, byte_size);
+    size_t num_samples = es->addFrames(in, byte_size);
     delete[] in; 
 
     char *out_vocal = NULL;
     char *out_bgm = NULL;
-    byte_size = es.separate(&out_vocal, &out_bgm);
+    byte_size = es->separate(&out_vocal, &out_bgm);
 
+    delete es;
     auto end_time = chrono::high_resolution_clock::now();
     double audio_duration = static_cast<double>(num_samples) / in_signal.sample_rate;
     chrono::duration<double> inference_time = end_time - start_time;

@@ -5,7 +5,6 @@ set(CMAKE_C_EXTENSIONS      ON)
 set(CMAKE_C_STANDARD        11)
 set(CMAKE_CXX_EXTENSIONS    ON)
 set(CMAKE_CXX_STANDARD      11)
-set(LINK_LIBRARIES         MNN)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
@@ -17,6 +16,8 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 
 # 第三方库依赖路径
 link_directories(lib)
+
+set(LINK_LIBRARIES MNN)
 
 add_library(${PROJECT_NAME}
 STATIC
