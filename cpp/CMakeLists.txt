@@ -11,11 +11,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
 
 # 配置头文件依赖路径
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 
 # 第三方库依赖路径
-link_directories(lib)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 set(LINK_LIBRARIES MNN)
 

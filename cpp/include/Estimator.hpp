@@ -37,7 +37,7 @@ public:
     std::pair<Eigen::Tensor<float, 4, Eigen::RowMajor>, Eigen::Tensor<float, 3, Eigen::RowMajor>> compute_stft(const Eigen::Tensor<float, 2, Eigen::RowMajor>& wav);
     Eigen::Tensor<float, 2, Eigen::RowMajor> compute_istft(const Eigen::Tensor<float, 4, Eigen::RowMajor>& stft);
     size_t addFrames(char *in, size_t size);
-    size_t separate(char **out_1, char **out_2);
+    size_t separate(char *out_1, char *out_2);
 private:
     int F;
     int T;

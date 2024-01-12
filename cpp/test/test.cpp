@@ -81,16 +81,16 @@ int main(int argc, char* argv[]) {
     }
 
     // Separate channels
-    size_t num_samples = es->addFrames(in, byte_size);
+    size_t num_bytes = es->addFrames(in, byte_size);
     delete[] in; 
 
-    char *out_vocal = NULL;
-    char *out_bgm = NULL;
-    byte_size = es->separate(&out_vocal, &out_bgm);
+    char *out_vocal = new char[num_bytes + in_signal.sample_rate];
+    char *out_bgm = new char[num_bytes + in_signal.sample_rate];
+    byte_size = es->separate(out_vocal, out_bgm);
 
     delete es;
     auto end_time = chrono::high_resolution_clock::now();
-    double audio_duration = static_cast<double>(num_samples) / in_signal.sample_rate;
+    double audio_duration = static_cast<double>(num_bytes) / (in_signal.sample_rate * in_signal.channels * (PCM_FORMAT == PCM_FLOAT32 ? sizeof(float) : sizeof(short)));
     chrono::duration<double> inference_time = end_time - start_time;
     double real_time_factor = inference_time.count() / audio_duration;
 

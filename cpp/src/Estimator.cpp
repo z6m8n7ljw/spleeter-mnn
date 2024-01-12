@@ -60,8 +60,8 @@ static Eigen::Tensor<float, 4, Eigen::RowMajor> pad_and_partition(const Eigen::T
     // If no padding is needed, we can directly partition the original array
     if (pad_size == 0) {
         for (int i = 0; i < split; ++i) {
-            result.slice(Eigen::array<long, 4>{i * num_batches, 0, 0, 0}, Eigen::array<long, 4>{num_batches, num_channels, num_freq_bins, T}) = 
-                array.slice(Eigen::array<long, 4>{0, 0, 0, i * T}, Eigen::array<long, 4>{num_batches, num_channels, num_freq_bins, T});
+            result.slice(Eigen::DSizes<Eigen::Index, 4>{i * num_batches, 0, 0, 0}, Eigen::DSizes<Eigen::Index, 4>{num_batches, num_channels, num_freq_bins, T}) = 
+                array.slice(Eigen::DSizes<Eigen::Index, 4>{0, 0, 0, i * T}, Eigen::DSizes<Eigen::Index, 4>{num_batches, num_channels, num_freq_bins, T});
         }
     } else {
         // Pad the last dimension with zeros
@@ -70,8 +70,8 @@ static Eigen::Tensor<float, 4, Eigen::RowMajor> pad_and_partition(const Eigen::T
 
         // Partition the padded tensor into segments of length T
         for (int i = 0; i < split; ++i) {
-            result.slice(Eigen::array<long, 4>{i * num_batches, 0, 0, 0}, Eigen::array<long, 4>{num_batches, num_channels, num_freq_bins, T}) = 
-                padded_array.slice(Eigen::array<long, 4>{0, 0, 0, i * T}, Eigen::array<long, 4>{num_batches, num_channels, num_freq_bins, T});
+            result.slice(Eigen::DSizes<Eigen::Index, 4>{i * num_batches, 0, 0, 0}, Eigen::DSizes<Eigen::Index, 4>{num_batches, num_channels, num_freq_bins, T}) = 
+                padded_array.slice(Eigen::DSizes<Eigen::Index, 4>{0, 0, 0, i * T}, Eigen::DSizes<Eigen::Index, 4>{num_batches, num_channels, num_freq_bins, T});
         }
     }
 
@@ -163,8 +163,8 @@ Eigen::Tensor<float, 2, Eigen::RowMajor> Estimator::compute_istft(const Eigen::T
     assert(stft.dimension(1) + pad != this->win_length);
     Eigen::Tensor<std::complex<float>, 3, Eigen::RowMajor> padded_stft_complex(stft.dimension(0), stft.dimension(1) + pad, stft.dimension(2));
     padded_stft_complex.setZero();
-    Eigen::array<long, 3> offsets = {0, 0, 0};
-    Eigen::array<long, 3> extents = {stft.dimension(0), stft.dimension(1), stft.dimension(2)};
+    Eigen::DSizes<Eigen::Index, 3> offsets(0, 0, 0);
+    Eigen::DSizes<Eigen::Index, 3> extents(stft.dimension(0), stft.dimension(1), stft.dimension(2));
     padded_stft_complex.slice(offsets, extents) = stft_complex;
 
     Eigen::FFT<float> fft;
@@ -227,20 +227,21 @@ size_t Estimator::addFrames(char *in, size_t byte_size) {
         }
     }
     size_t wav_size = this->wav.dimension(1);
+    byte_size = wav_size * this->signal_info.channels * (this->signal_info.data_format == PCM_16BIT ? sizeof(short) : sizeof(float));
 
-    return wav_size;
+    return byte_size;
 }
 
-size_t Estimator::separate(char **out_1, char **out_2) {
+size_t Estimator::separate(char *out_1, char *out_2) {
     auto stft_result = compute_stft(this->wav);
     auto stft = stft_result.first;
     auto stft_mag = stft_result.second;
 
     int L = stft.dimension(2);
 
-    Eigen::array<long, 4> broadcast_dims = {1, 1, 1, 1};
-    Eigen::Tensor<float, 4, Eigen::RowMajor> stft_mag_4d = stft_mag.reshape(Eigen::array<long, 4>{stft_mag.dimension(0), stft_mag.dimension(1), stft_mag.dimension(2), 1}).broadcast(broadcast_dims);
-    Eigen::array<long, 4> shuffle_dims({3, 0, 1, 2});
+    Eigen::DSizes<Eigen::Index, 4> broadcast_dims(1, 1, 1, 1);
+    Eigen::Tensor<float, 4, Eigen::RowMajor> stft_mag_4d = stft_mag.reshape(Eigen::DSizes<Eigen::Index, 4>{stft_mag.dimension(0), stft_mag.dimension(1), stft_mag.dimension(2), 1}).broadcast(broadcast_dims);
+    Eigen::DSizes<Eigen::Index, 4> shuffle_dims({3, 0, 1, 2});
     Eigen::Tensor<float, 4, Eigen::RowMajor> stft_mag_trans = stft_mag_4d.shuffle(shuffle_dims);
     Eigen::Tensor<float, 4, Eigen::RowMajor> stft_mag_padded = pad_and_partition(stft_mag_trans, this->T);
     shuffle_dims = {0, 1, 3, 2};
@@ -283,30 +284,31 @@ size_t Estimator::separate(char **out_1, char **out_2) {
     std::vector<Eigen::Tensor<float, 2, Eigen::RowMajor>> wavs;
     for (auto& mask : masks) {
         mask = (mask.square() + (1e-10f / 2)) / mask_sum;
-        
-        Eigen::array<long, 4> shuffle_dims = {0, 1, 3, 2};
+
+        Eigen::DSizes<Eigen::Index, 4> shuffle_dims(0, 1, 3, 2);
         Eigen::Tensor<float, 4, Eigen::RowMajor> mask_trans = mask.shuffle(shuffle_dims);
 
         std::vector<Eigen::Tensor<float, 4, Eigen::RowMajor>> splits;
         for (int i = 0; i < mask_trans.dimension(0); ++i) {
-            splits.push_back(mask_trans.chip(i, 0).reshape(Eigen::array<long, 4>{1, mask_trans.dimension(1), mask_trans.dimension(2), mask_trans.dimension(3)}));
+            Eigen::DSizes<Eigen::Index, 4> new_shape(1, mask_trans.dimension(1), mask_trans.dimension(2), mask_trans.dimension(3));
+            splits.push_back(mask_trans.chip(i, 0).reshape(new_shape));
         }
 
         Eigen::Tensor<float, 4, Eigen::RowMajor> mask_concat(splits[0].dimension(0), splits[0].dimension(1), splits[0].dimension(2), B * splits[0].dimension(3));
         for (int i = 0; i < mask.dimension(0); ++i) {
-            Eigen::array<long, 4> offset = {0, 0, 0, i * splits[0].dimension(3)};
+            Eigen::DSizes<Eigen::Index, 4> offset(0, 0, 0, i * splits[0].dimension(3));
             mask_concat.slice(offset, splits[i].dimensions()) = splits[i];
         }
 
-        Eigen::array<long, 3> new_shape = {mask_concat.dimension(1), mask_concat.dimension(2), mask_concat.dimension(3)};
+        Eigen::DSizes<Eigen::Index, 3> new_shape(mask_concat.dimension(1), mask_concat.dimension(2), mask_concat.dimension(3));
         Eigen::Tensor<float, 3, Eigen::RowMajor> mask_reshaped = mask_concat.reshape(new_shape);
-        Eigen::array<long, 3> offsets = {0, 0, 0};
-        Eigen::array<long, 3> extents = {mask_reshaped.dimension(0), mask_reshaped.dimension(1), L};
+        Eigen::DSizes<Eigen::Index, 3> offsets(0, 0, 0);
+        Eigen::DSizes<Eigen::Index, 3> extents(mask_reshaped.dimension(0), mask_reshaped.dimension(1), L);
         Eigen::Tensor<float, 3, Eigen::RowMajor> mask_sliced = mask_reshaped.slice(offsets, extents);
-        Eigen::array<long, 4> new_dims = {mask_sliced.dimension(0), mask_sliced.dimension(1), mask_sliced.dimension(2), 1};
+        Eigen::DSizes<Eigen::Index, 4> new_dims(mask_sliced.dimension(0), mask_sliced.dimension(1), mask_sliced.dimension(2), 1);
         Eigen::Tensor<float, 4, Eigen::RowMajor> mask_expanded = mask_sliced.reshape(new_dims);
 
-        Eigen::Tensor<float, 4, Eigen::RowMajor> stft_masked = stft * mask_expanded.broadcast(Eigen::array<long, 4>{1, 1, 1, stft.dimension(3)});
+        Eigen::Tensor<float, 4, Eigen::RowMajor> stft_masked = stft * mask_expanded.broadcast(Eigen::DSizes<Eigen::Index, 4>{1, 1, 1, stft.dimension(3)});
 
         Eigen::Tensor<float, 2, Eigen::RowMajor> wav_masked = compute_istft(stft_masked);
 
@@ -314,7 +316,7 @@ size_t Estimator::separate(char **out_1, char **out_2) {
     }
 
     size_t num_samples = wavs[0].dimension(1);
-    size_t byte_size = this->signal_info.channels * num_samples * (this->signal_info.data_format == PCM_16BIT ? sizeof(short) : sizeof(float));
+    size_t byte_size = num_samples * this->signal_info.channels * (this->signal_info.data_format == PCM_16BIT ? sizeof(short) : sizeof(float));
     if (this->signal_info.data_format == PCM_16BIT) {
         short *wav_1 = new short[this->signal_info.channels * num_samples];
         short *wav_2 = new short[this->signal_info.channels * num_samples];
@@ -324,11 +326,9 @@ size_t Estimator::separate(char **out_1, char **out_2) {
             wav_2[this->signal_info.channels * j] = static_cast<short>(wavs[1](0, j) *  INT16_MAX);
             wav_2[this->signal_info.channels * j + 1] = static_cast<short>(wavs[1](1, j) *  INT16_MAX);
         }
-        *out_1 = (char *)malloc(byte_size * sizeof(char));
-        memcpy(*out_1, wav_1, byte_size);
+        memcpy(out_1, wav_1, byte_size);
         delete[] wav_1;
-        *out_2 = (char *)malloc(byte_size * sizeof(char));
-        memcpy(*out_2, wav_2, byte_size);
+        memcpy(out_2, wav_2, byte_size);
         delete[] wav_2;
     } else if (this->signal_info.data_format == PCM_FLOAT32) {
         float *wav_1 = new float[this->signal_info.channels * num_samples];
@@ -339,11 +339,9 @@ size_t Estimator::separate(char **out_1, char **out_2) {
             wav_2[this->signal_info.channels * j] = wavs[1](0, j);
             wav_2[this->signal_info.channels * j + 1] = wavs[1](1, j);
         }
-        *out_1 = new char[byte_size];
-        memcpy(*out_1, wav_1, byte_size);
+        memcpy(out_1, wav_1, byte_size);
         delete[] wav_1;
-        *out_2 = new char[byte_size];
-        memcpy(*out_2, wav_2, byte_size);
+        memcpy(out_2, wav_2, byte_size);
         delete[] wav_2;
     }
 
