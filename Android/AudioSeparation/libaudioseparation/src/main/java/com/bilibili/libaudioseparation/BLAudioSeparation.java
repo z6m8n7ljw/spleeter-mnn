@@ -71,9 +71,9 @@ public class BLAudioSeparation {
      *
      * @param input 音频数据
      * @param size  音频数据的字节数
-     * @return 成功添加的采样点数
+     * @return 成功添加的字节数
      */
-    public int addFrames(byte[] input, int size) {
+    public int addFrames(byte[] input, long size) {
         return _addFrames(mObject, input, size);
     }
 
@@ -96,11 +96,11 @@ public class BLAudioSeparation {
     }
 
     // native methods
-    private static native long _getNativeBean(int sampleRate, int channels, int dataFormat);
+    private static native long _getNativeBean(String vocalModelPath, String accompanimentModelPath, int sampleRate, int channels, int dataFormat);
 
     private static native void _releaseNativeBean(long object);
 
-    private static native int _addFrames(long object, byte[] input, int size);
+    private static native int _addFrames(long object, byte[] input, long size);
 
     private static native int _separate(long object, byte[] out1, byte[] out2);
 }

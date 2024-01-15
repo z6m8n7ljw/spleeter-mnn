@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AudioSeparation</string>
+    <string name="back_button">返回</string>
+</resources>

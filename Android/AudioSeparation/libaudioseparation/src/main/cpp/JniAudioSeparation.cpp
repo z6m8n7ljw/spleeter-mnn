@@ -1,22 +1,28 @@
 #include <stdlib.h>
 #include <stdexcept>
-#include "lib-audio-separation/include/Estimator.h"
+#include "lib-audio-separation/include/Estimator.hpp"
 #include "utils.h"
 
+extern "C" {
 /*
  * Class:     com_bilibili_libaudioseparation_BLAudioSeparation
  * Method:    _getNativeBean
  * Signature: (Ljava/lang/String;Ljava/lang/String;III)J
  */
 JNIEXPORT jlong JNICALL
-Java_com_bilibili_libaudioseparation_BLAudioSeparation__1getNativeBean(JNIEnv *env, jclass type, jstring vocalModelPath, jstring accompanimentModelPath, jint sampleRate, jint channels, jint dataFormat) {
-    const char *vocal_model_path_ = (*env)->GetStringUTFChars(env, vocalModelPath, 0);
-    const char *accompaniment_model_path_ = (*env)->GetStringUTFChars(env, accompaniment_model_path, 0);
+Java_com_bilibili_libaudioseparation_BLAudioSeparation__1getNativeBean(JNIEnv *env, jclass type,
+                                                                       jstring vocalModelPath,
+                                                                       jstring accompanimentModelPath,
+                                                                       jint sampleRate,
+                                                                       jint channels,
+                                                                       jint dataFormat) {
+    const char *vocal_model_path_ = env->GetStringUTFChars(vocalModelPath, 0);
+    const char *accompaniment_model_path_ = env->GetStringUTFChars(accompanimentModelPath, 0);
     SignalInfo in_signal;
     in_signal.sample_rate = sampleRate;
     in_signal.channels = channels;
-    in_signal.data_format = (enum AudioDataFormat)dataFormat;
-    
+    in_signal.data_format = static_cast<AudioDataFormat>(dataFormat);
+
     Estimator *estimator = nullptr;
     try {
         estimator = new Estimator(vocal_model_path_, accompaniment_model_path_, in_signal);
@@ -24,10 +30,10 @@ Java_com_bilibili_libaudioseparation_BLAudioSeparation__1getNativeBean(JNIEnv *e
         LOGE("Failed to create Estimator: %s", e.what());
     }
 
-    (*env)->ReleaseStringUTFChars(env, vocal_model_path, vocal_model_path_);
-    (*env)->ReleaseStringUTFChars(env, accompaniment_model_path, accompaniment_model_path_);
+    env->ReleaseStringUTFChars(vocalModelPath, vocal_model_path_);
+    env->ReleaseStringUTFChars(accompanimentModelPath, accompaniment_model_path_);
 
-    return (jlong)estimator;
+    return reinterpret_cast<jlong>(estimator);
 }
 
 /*
@@ -36,10 +42,11 @@ Java_com_bilibili_libaudioseparation_BLAudioSeparation__1getNativeBean(JNIEnv *e
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL
-Java_com_bilibili_libaudioseparation_BLAudioSeparation__1releaseNativeBean(JNIEnv *env, jclass type, jlong object) {
-    Estimator *estimator = Estimator * object;
+Java_com_bilibili_libaudioseparation_BLAudioSeparation__1releaseNativeBean(JNIEnv *env, jclass type,
+                                                                           jlong object) {
+    Estimator *estimator = reinterpret_cast<Estimator *>(object);
     if (estimator == nullptr) {
-        LOGW("Invalid mObject Offsets. or may be died.");
+        LOGW("Invalid Estimator object or may be died.");
         return;
     }
     delete estimator;
@@ -48,19 +55,22 @@ Java_com_bilibili_libaudioseparation_BLAudioSeparation__1releaseNativeBean(JNIEn
 /*
  * Class:     com_bilibili_libaudioseparation_BLAudioSeparation
  * Method:    _addFrames
- * Signature: (J[BII)I
+ * Signature: (J[BJ)I
  */
 JNIEXPORT jint JNICALL
-Java_com_bilibili_libaudioseparation_BLAudioSeparation__1addFrames(JNIEnv *env, jclass type, jlong object, jbyteArray input, jint expectedBufferSize) {
-    Estimator *estimator = Estimator * object;
+Java_com_bilibili_libaudioseparation_BLAudioSeparation__1addFrames(JNIEnv *env, jclass type,
+                                                                   jlong object, jbyteArray input,
+                                                                   jlong inputSize) {
+    Estimator *estimator = reinterpret_cast<Estimator *>(object);
     if (estimator == nullptr) {
         LOGW("Invalid Estimator object or may be died.");
         return INVALID_OBJECT;
     }
 
-    jbyte *inputBuffer_ = (*env)->GetByteArrayElements(env, input, NULL);
-    int result = estimator->addFrames(inputBuffer_, expectedBufferSize);
-    (*env)->ReleaseByteArrayElements(env, input, inputBuffer_, 0);
+    jbyte *inputBuffer_ = env->GetByteArrayElements(input, NULL);
+    int result = estimator->addFrames(reinterpret_cast<char *>(inputBuffer_),
+                                      static_cast<size_t>(inputSize));
+    env->ReleaseByteArrayElements(input, inputBuffer_, 0);
 
     return result;
 }
@@ -71,20 +81,24 @@ Java_com_bilibili_libaudioseparation_BLAudioSeparation__1addFrames(JNIEnv *env, 
  * Signature: (J[B[B)I
  */
 JNIEXPORT jint JNICALL
-Java_com_bilibili_libaudioseparation_BLAudioSeparation__1separate(JNIEnv *env, jclass type, jlong object, jbyteArray output1, jbyteArray output2) {
-    Estimator *estimator = Estimator * object;
+Java_com_bilibili_libaudioseparation_BLAudioSeparation__1separate(JNIEnv *env, jclass type,
+                                                                  jlong object, jbyteArray output1,
+                                                                  jbyteArray output2) {
+    Estimator *estimator = reinterpret_cast<Estimator *>(object);
     if (estimator == nullptr) {
         LOGW("Invalid Estimator object or may be died.");
         return INVALID_OBJECT;
     }
 
-    jbyte *out_1_ = (*env)->GetByteArrayElements(env, output1, NULL);
-    jbyte *out_2_ = (*env)->GetByteArrayElements(env, output2, NULL);
+    jbyte *out_1_ = env->GetByteArrayElements(output1, NULL);
+    jbyte *out_2_ = env->GetByteArrayElements(output2, NULL);
 
-    int result = estimator->separate(&out_1_, &out_2_);
+    int result = estimator->separate(reinterpret_cast<char *>(out_1_),
+                                     reinterpret_cast<char *>(out_2_));
 
-    (*env)->ReleaseByteArrayElements(env, output1, out_1_, 0);
-    (*env)->ReleaseByteArrayElements(env, output2, out_2_, 0);
+    env->ReleaseByteArrayElements(output1, out_1_, 0);
+    env->ReleaseByteArrayElements(output2, out_2_, 0);
 
     return result;
+}
 }

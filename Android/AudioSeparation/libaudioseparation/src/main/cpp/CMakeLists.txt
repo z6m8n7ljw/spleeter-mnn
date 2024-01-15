@@ -19,7 +19,8 @@ else()
 endif()
 
 include_directories(${LIB_DIR}/include)
-include_directories(${LIB_DIR}/src)
+
+link_directories(${LIB_DIR}/lib)
 
 add_library( # Sets the name of the library.
         ${PROJECT_NAME}
@@ -29,7 +30,10 @@ add_library( # Sets the name of the library.
 find_library(log-lib log)
 set(AUDIO_SEPARATION audio-separation)
 
-target_link_libraries(${PROJECT_NAME} ${log-lib} ${AUDIO_SEPARATION})
+add_library(MNN SHARED IMPORTED)
+set_target_properties(MNN PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/lib/libMNN.so)
+
+target_link_libraries(${PROJECT_NAME} ${log-lib} ${AUDIO_SEPARATION} MNN)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    COMMAND ${CMAKE_STRIP} $<TARGET_FILE:${PROJECT_NAME}>)
