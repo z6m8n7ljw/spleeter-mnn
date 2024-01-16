@@ -1,4 +1,13 @@
 <resources>
     <string name="app_name">AudioSeparation</string>
+    <string name="main_button">音频分离测试</string>
     <string name="back_button">返回</string>
+    <string name="input">输入</string>
+    <string name="process">音频分离</string>
+    <string name="status">状态</string>
+    <string name="audio_duration">音频时长</string>
+    <string name="processing_time">处理时间</string>
+    <string name="vocal">人声</string>
+    <string name="background_sound">背景声</string>
+    <string name="play">试听</string>
 </resources>

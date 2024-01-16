@@ -39,7 +39,6 @@ public class MainActivity extends BaseActivity {
 
         initPermission();
         setListener();
-//        setNativeLibraryDirPath();
         prepareResourceFiles();
     }
 
@@ -56,11 +55,6 @@ public class MainActivity extends BaseActivity {
 
     private void setListener() {
         findViewById(R.id.main_btn_audioseparate).setOnClickListener(v -> startActivity(AudioSeparationActivity.class));
-    }
-
-    private void setNativeLibraryDirPath() {
-        String libPath = "/data/data/com.bilibili.audioseparation/";
-        BLLibLoader.setLibraryPath(libPath);
     }
 
     private void initPermission() {

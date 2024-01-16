@@ -20,7 +20,7 @@ public class AudioSeparation implements Runnable {
     private int mChannels = 2;
     private int mAudioFormat = AudioFormat.ENCODING_PCM_FLOAT;
     private BLAudioSeparation mAudioSeparation = null;
-    
+    private long mInputSize;
     private String mPcmFilePath;
     private String mVocalPcmFilePath;
     private String mBgmPcmFilePath;
@@ -54,16 +54,16 @@ public class AudioSeparation implements Runnable {
     @Override
     public void run() {
         try (RandomAccessFile inputRandomAccessFile = Utils.getInputRandomAccessFile(mPcmFilePath)) {
-            long fileLength = inputRandomAccessFile.length();
-            Log.i(TAG, "getFileLength = " + fileLength + " bytes !");
-            if (fileLength <= 0) {
+            mInputSize = inputRandomAccessFile.length();
+            Log.i(TAG, "getFileLength = " + mInputSize + " bytes !");
+            if (mInputSize <= 0) {
                 Log.w(TAG, "Empty file or end of file reached, stopping player");
                 return;
             }
-            byte[] data = new byte[(int) fileLength];
+            byte[] data = new byte[(int) mInputSize];
             inputRandomAccessFile.readFully(data);
 
-            int ret = mAudioSeparation.addFrames(data, fileLength);
+            int ret = mAudioSeparation.addFrames(data, mInputSize);
             if (ret < 0) {
                 Log.e(TAG, "onAudioFrame: sendFrames");
                 return;
@@ -85,5 +85,26 @@ public class AudioSeparation implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public float getTimeDuration() {
+        if (mInputSize == 0) {
+            return 0;
+        }
+
+        int bytesPerFrame;
+        switch (mAudioFormat) {
+            case AudioFormat.ENCODING_PCM_16BIT:
+                bytesPerFrame = 2 * mChannels;
+                break;
+            case AudioFormat.ENCODING_PCM_FLOAT:
+                bytesPerFrame = 4 * mChannels;
+                break;
+            default:
+                return 0;
+        }
+
+        long totalFrames = mInputSize / bytesPerFrame;
+        return (float) totalFrames / mSampleRateInHz;
     }
 }

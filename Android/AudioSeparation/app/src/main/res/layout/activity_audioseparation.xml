@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -12,128 +11,173 @@
 
         <ImageButton
             android:id="@+id/back_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_marginStart="16dp"
-            android:layout_marginLeft="16dp"
-            android:layout_marginTop="16dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_margin="12dp"
             android:background="?android:attr/selectableItemBackground"
             android:contentDescription="@string/back_button"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_back" />
+
+        <View
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="12dp"
+            android:indeterminate="true"
+            android:visibility="gone" />
 
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/back_button"
         android:orientation="vertical">
 
-        <LinearLayout
+        <RadioGroup
+            android:id="@+id/file_in_group"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.5"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="horizontal">
 
-            <RadioGroup
-                android:id="@+id/file_in_group"
+            <RadioButton
+                android:id="@+id/rb_pcm_input"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <RadioButton
-                    android:id="@+id/rb_pcm_input"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="输入"
-                    android:textSize="24sp" />
-            </RadioGroup>
-        </LinearLayout>
+                android:checked="true"
+                android:text="@string/input"
+                android:textSize="24sp" />
+        </RadioGroup>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.3"
-            android:gravity="center_horizontal"
-            android:orientation="horizontal">
+            android:gravity="center"
+            android:orientation="vertical">
 
             <Button
                 android:id="@+id/btn_audio_separate"
-                android:layout_width="240dp"
+                android:layout_width="200dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="0"
-                android:text="音频分离"
-                android:textSize="24sp" />
+                android:text="@string/process"
+                android:textSize="20sp" />
         </LinearLayout>
 
-        <LinearLayout
+        <TableLayout
+            android:id="@+id/table"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.5"
             android:gravity="center_horizontal"
             android:orientation="horizontal">
-            <ProgressBar
-                android:id="@+id/progress_bar"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:indeterminate="true"
-                android:visibility="gone" />
 
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.5"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <RadioGroup
-                android:id="@+id/file_out_group"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:orientation="horizontal">
 
-                <RadioButton
-                    android:id="@+id/rb_pcm_vocal"
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="30dp"
-                    android:layout_marginRight="30dp"
-                    android:checked="false"
-                    android:text="人声"
-                    android:textSize="24sp" />
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/status"
+                    android:textSize="22sp" />
 
-                <RadioButton
-                    android:id="@+id/rb_pcm_bgm"
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="30dp"
-                    android:layout_marginLeft="30dp"
-                    android:checked="false"
-                    android:text="背景声"
-                    android:textSize="24sp" />
-            </RadioGroup>
-        </LinearLayout>
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/audio_duration"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/processing_time"
+                    android:textSize="22sp" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/duration_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:textSize="22sp" />
+
+                <TextView
+                    android:id="@+id/processing_time_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:textSize="22sp" />
+            </TableRow>
+
+        </TableLayout>
+
+        <RadioGroup
+            android:id="@+id/file_out_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rb_pcm_vocal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="30dp"
+                android:layout_marginRight="30dp"
+                android:checked="false"
+                android:text="@string/vocal"
+                android:textSize="24sp" />
+
+            <RadioButton
+                android:id="@+id/rb_pcm_bgm"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="30dp"
+                android:layout_marginLeft="30dp"
+                android:checked="false"
+                android:text="@string/background_sound"
+                android:textSize="24sp" />
+        </RadioGroup>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.3"
-            android:gravity="center_horizontal"
-            android:orientation="horizontal">
+            android:gravity="center|center_horizontal"
+            android:orientation="vertical">
 
             <Button
                 android:id="@+id/btn_play"
-                android:layout_width="120dp"
+                android:layout_width="100dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="0"
-                android:text="试听"
-                android:textSize="24sp" />
+                android:text="@string/play"
+                android:textSize="20sp" />
         </LinearLayout>
 
     </LinearLayout>
