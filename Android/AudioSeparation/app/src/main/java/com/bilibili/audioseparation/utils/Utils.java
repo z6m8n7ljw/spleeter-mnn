@@ -21,11 +21,11 @@ import java.io.RandomAccessFile;
 
 public class Utils {
 
-    private static final String SDCARD = "/sdcard/";// Environment.getExternalStorageDirectory().getAbsolutePath();
-    private static final String APP_NAME = "audio_effect/";
+    private static final String SDCARD = "/sdcard/"; // Environment.getExternalStorageDirectory().getAbsolutePath();
+    private static final String APP_NAME = "audio_separation/";
     public static final String APP_DIR = SDCARD + APP_NAME;
     public static final String PCM_FILE_EFFECT = APP_DIR + "effect.pcm";
-    public static final String PCM_FILE_INPUT = APP_DIR + "coc.pcm";
+    public static final String PCM_FILE_INPUT = APP_DIR + "airuchaoshui.pcm";
     public static final String PCM_FILE_VOCAL = APP_DIR + "vocal.pcm";
     public static final String PCM_FILE_BGM = APP_DIR + "bgm.pcm";
     public static final String MODEL_FILE_VOCAL = APP_DIR + "vocal.mnn";

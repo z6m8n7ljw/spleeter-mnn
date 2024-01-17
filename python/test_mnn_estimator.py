@@ -187,7 +187,7 @@ if __name__ == '__main__':
     sr = 44100
     es = MNN_Estimator()
 
-    wav, _ = librosa.load(os.path.join(root_dir, 'audio/coc.wav'), mono=False, res_type='kaiser_fast', sr=sr)
+    wav, _ = librosa.load(os.path.join(root_dir, 'audio/airuchaoshui.wav'), mono=False, res_type='kaiser_fast', sr=sr)
 
     audio_duration = wav.shape[1] / sr
 

@@ -45,7 +45,7 @@ public class MainActivity extends BaseActivity {
     private void prepareResourceFiles() {
         Utils.copyFromAssets(this, "vocal.mnn", Utils.MODEL_FILE_VOCAL);
         Utils.copyFromAssets(this, "accompaniment.mnn", Utils.MODEL_FILE_BGM);
-        Utils.copyFromAssets(this, "coc.pcm", Utils.PCM_FILE_INPUT);
+        Utils.copyFromAssets(this, "airuchaoshui.pcm", Utils.PCM_FILE_INPUT);
     }
 
     @Override

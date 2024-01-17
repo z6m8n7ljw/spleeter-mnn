@@ -9,7 +9,7 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
-import android.widget.Toast;
+import android.graphics.Color;
 import android.widget.ProgressBar;
 
 import com.bilibili.audioseparation.BaseActivity;
@@ -27,11 +27,14 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
     private Button mBtnPlay;
     private Button mBtnAudioSeparate;
     private ProgressBar mProgressBar;
+    private TextView mStatusText;
+    private TextView mDurationText;
+    private TextView mProcessingTimeText;
 
     private Thread mThread;
     private String mVocalModelFilePath = Utils.MODEL_FILE_VOCAL;
     private String mBgmModelFilePath = Utils.MODEL_FILE_BGM;
-    private String mCurrentPcmFilePath = null;
+    private String mCurrentPcmFilePath = Utils.PCM_FILE_INPUT;
 
     private String mPcmFilePath = Utils.PCM_FILE_INPUT;
     private String mVocalPcmFilePath = Utils.PCM_FILE_VOCAL;
@@ -62,6 +65,15 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
 
         ((RadioGroup) findViewById(R.id.file_in_group)).setOnCheckedChangeListener(this);
         ((RadioGroup) findViewById(R.id.file_out_group)).setOnCheckedChangeListener(this);
+
+        mStatusText = findViewById(R.id.status_text);
+        mDurationText = findViewById(R.id.duration_text);
+        mProcessingTimeText = findViewById(R.id.processing_time_text);
+
+        mStatusText.setTextColor(Color.RED);
+        mStatusText.setText("未完成");
+        mDurationText.setText("");
+        mProcessingTimeText.setText("");
     }
 
 
@@ -140,20 +152,6 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
         }
     }
 
-    private void showToastCenteredWithCustomSize(String message) {
-        Toast toast = new Toast(getApplicationContext());
-
-        View toastView = getLayoutInflater().inflate(R.layout.custom_toast, null);
-        TextView textView = toastView.findViewById(R.id.custom_toast_text);
-
-        textView.setText(message);
-        toast.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL, 0, 0);
-        toast.setDuration(Toast.LENGTH_LONG);
-        toast.setView(toastView);
-
-        toast.show();
-    }
-
     private void audioSeparate() {
         runOnUiThread(new Runnable() {
             @Override
@@ -166,14 +164,21 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
             @Override
             public void run() {
                 try {
+                    final long mStartTime = System.currentTimeMillis();
                     AudioSeparation audioSeparator = new AudioSeparation(mPcmFilePath, mVocalPcmFilePath, mBgmPcmFilePath, mVocalModelFilePath, mBgmModelFilePath, SAMPLE_RATE_IN_HZ, CHANNELS, DEFAULT_AUDIO_FORMAT);
                     audioSeparator.run();
+                    final float processingTime = (System.currentTimeMillis() - mStartTime) / 1000.0f;
+
+                    final float duration = audioSeparator.getTimeDuration();
 
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             mProgressBar.setVisibility(View.GONE);
-                            showToastCenteredWithCustomSize("音频分离完成");
+                            mStatusText.setTextColor(Color.GREEN);
+                            mStatusText.setText("已完成");
+                            mDurationText.setText(String.valueOf(duration) + " 秒");
+                            mProcessingTimeText.setText(String.valueOf(processingTime) + " 秒");
                         }
                     });
                 } catch (Exception e) {
@@ -182,7 +187,6 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
                         @Override
                         public void run() {
                             mProgressBar.setVisibility(View.GONE);
-                            showToastCenteredWithCustomSize("音频分离失败");
                         }
                     });
                 }
