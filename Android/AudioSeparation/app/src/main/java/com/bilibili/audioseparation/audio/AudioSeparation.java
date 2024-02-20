@@ -65,7 +65,7 @@ public class AudioSeparation implements Runnable {
 
             int ret = mAudioSeparation.addFrames(data, mInputSize);
             if (ret < 0) {
-                Log.e(TAG, "onAudioFrame: sendFrames");
+                Log.e(TAG, "Error sending frames to audio separation");
                 return;
             }
             byte[] vocalAudioData = new byte[ret + mSampleRateInHz * mChannels * 2];
@@ -76,14 +76,17 @@ public class AudioSeparation implements Runnable {
                 return;
             }
 
-            try (FileOutputStream vocalOut = new FileOutputStream(mVocalPcmFilePath)) {
+            try (FileOutputStream vocalOut = new FileOutputStream(mVocalPcmFilePath);
+                 FileOutputStream bgmOut = new FileOutputStream(mBgmPcmFilePath)) {
                 vocalOut.write(vocalAudioData, 0, ret);
-            }
-            try (FileOutputStream bgmOut = new FileOutputStream(mBgmPcmFilePath)) {
                 bgmOut.write(bgmAudioData, 0, ret);
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (mAudioSeparation != null) {
+                mAudioSeparation.release();
+            }
         }
     }
 

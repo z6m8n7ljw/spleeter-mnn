@@ -63,10 +63,6 @@ public class AudioPlayer {
         return true;
     }
 
-    public boolean isPlayerStarted() {
-        return mIsPlayStarted;
-    }
-
     public int getMinBufferSize() {
         return mMinBufferSize;
     }

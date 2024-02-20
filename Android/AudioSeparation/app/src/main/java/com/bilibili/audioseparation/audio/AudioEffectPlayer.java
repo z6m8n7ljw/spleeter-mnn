@@ -36,6 +36,10 @@ public class AudioEffectPlayer implements Runnable {
 
     public void stopAudioEffectPlayer() {
         mIsPlaying = false;
+        if (mPlayer != null) {
+            mPlayer.stopPlayer();
+            mPlayer = null;
+        }
     }
 
     private void startAudioEffectPlayer() {
@@ -57,9 +61,10 @@ public class AudioEffectPlayer implements Runnable {
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void run() {
+        RandomAccessFile inputRandomAccessFile = null;
         try {
             // 打开播放文件
-            RandomAccessFile inputRandomAccessFile = Utils.getInputRandomAccessFile(mPcmFilePath);
+            inputRandomAccessFile = Utils.getInputRandomAccessFile(mPcmFilePath);
             // 创建并启动播放
             startAudioEffectPlayer();
             // 创建字节数组
@@ -82,7 +87,15 @@ public class AudioEffectPlayer implements Runnable {
             inputRandomAccessFile.close();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (inputRandomAccessFile != null) {
+                try {
+                    inputRandomAccessFile.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            stopAudioEffectPlayer(); // 确保停止播放器并释放资源
         }
-
     }
 }

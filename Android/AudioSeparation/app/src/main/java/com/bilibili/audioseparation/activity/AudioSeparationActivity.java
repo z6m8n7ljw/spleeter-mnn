@@ -31,7 +31,8 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
     private TextView mDurationText;
     private TextView mProcessingTimeText;
 
-    private Thread mThread;
+    private Thread mThreadPlay;
+    private Thread mThreadSep;
     private String mVocalModelFilePath = Utils.MODEL_FILE_VOCAL;
     private String mBgmModelFilePath = Utils.MODEL_FILE_BGM;
     private String mCurrentPcmFilePath = Utils.PCM_FILE_INPUT;
@@ -76,30 +77,22 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
         mProcessingTimeText.setText("");
     }
 
-
-    @Override
-    protected void onStop() {
-        stopPlay();
-//        mAudioSeparater.release();
-        super.onStop();
-    }
-
     private void startPlay() {
         mBtnPlay.setText("停止");
         mAudioPlayer = new AudioEffectPlayer(SAMPLE_RATE_IN_HZ, CHANNELS, DEFAULT_AUDIO_FORMAT);
         mAudioPlayer.setAudioEffectPlayer(mCurrentPcmFilePath);
-        mThread = new Thread(mAudioPlayer);
-        mThread.setPriority(Thread.MAX_PRIORITY);
-        mThread.start();
+        mThreadPlay = new Thread(mAudioPlayer);
+        mThreadPlay.setPriority(Thread.MAX_PRIORITY);
+        mThreadPlay.start();
     }
 
     private void stopPlay() {
         mBtnPlay.setText("试听");
-        if (null != mThread && mThread.isAlive()) {
+        if (null != mThreadPlay && mThreadPlay.isAlive()) {
             mAudioPlayer.stopAudioEffectPlayer();
-            mThread.interrupt();
+            mThreadPlay.interrupt();
             try {
-                mThread.join();
+                mThreadPlay.join();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -153,6 +146,9 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
     }
 
     private void audioSeparate() {
+        if (mThreadSep != null && mThreadSep.isAlive()) {
+            return;
+        }
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -160,7 +156,7 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
             }
         });
 
-        Thread audioSaparationThread = new Thread(new Runnable() {
+        mThreadSep = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -177,8 +173,8 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
                             mProgressBar.setVisibility(View.GONE);
                             mStatusText.setTextColor(Color.GREEN);
                             mStatusText.setText("已完成");
-                            mDurationText.setText(String.valueOf(duration) + " 秒");
-                            mProcessingTimeText.setText(String.valueOf(processingTime) + " 秒");
+                            mDurationText.setText(String.format("%.2f 秒", duration));
+                            mProcessingTimeText.setText(String.format("%.2f 秒", processingTime));
                         }
                     });
                 } catch (Exception e) {
@@ -189,9 +185,11 @@ public class AudioSeparationActivity extends BaseActivity implements View.OnClic
                             mProgressBar.setVisibility(View.GONE);
                         }
                     });
+                } finally {
+                    mThreadSep = null;
                 }
             }
         });
-        audioSaparationThread.start();
+        mThreadSep.start();
     }
 }
