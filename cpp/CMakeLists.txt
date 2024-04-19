@@ -16,7 +16,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 # 第三方库依赖路径
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
-set(LINK_LIBRARIES MNN)
+set(LINK_LIBRARIES MNN MNN_CL MNN_Express)
 
 add_library(${PROJECT_NAME}
 STATIC

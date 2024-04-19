@@ -105,6 +105,8 @@ venv.bak/
 
 .vscode
 
+.idea
+
 # models
 models/*.onnx
 models/*.mnn

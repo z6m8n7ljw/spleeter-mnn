@@ -92,6 +92,15 @@ Estimator::Estimator(const std::string& vocal_model_path, const std::string& acc
     }
     this->interpreters.push_back(interpreter);
     MNN::ScheduleConfig config_vocal;
+    config_vocal.numThread = 1;
+    int forward = MNN_FORWARD_OPENCL;
+    config_vocal.type = static_cast<MNNForwardType>(forward);
+    MNN::BackendConfig backendConfig;
+    backendConfig.memory = MNN::BackendConfig::Memory_Normal;  // Memory
+    backendConfig.power = MNN::BackendConfig::Power_Normal;  // Power
+    backendConfig.precision = MNN::BackendConfig::PrecisionMode::Precision_High;  // Precision
+    config_vocal.backendConfig = &backendConfig;
+
     session = interpreter->createSession(config_vocal);
     if (!session) {
         throw std::runtime_error("Failed to create session for vocal model.");
@@ -105,6 +114,9 @@ Estimator::Estimator(const std::string& vocal_model_path, const std::string& acc
     }
     this->interpreters.push_back(interpreter);
     MNN::ScheduleConfig config_accompaniment;
+    config_accompaniment.numThread = 1;
+    config_accompaniment.type = static_cast<MNNForwardType>(forward);
+    config_accompaniment.backendConfig = &backendConfig;
     session = interpreter->createSession(config_accompaniment);
     if (!session) {
         throw std::runtime_error("Failed to create session for accompaniment model.");

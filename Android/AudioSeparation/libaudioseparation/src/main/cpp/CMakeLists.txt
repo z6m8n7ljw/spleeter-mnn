@@ -32,8 +32,12 @@ set(AUDIO_SEPARATION audio-separation)
 
 add_library(MNN SHARED IMPORTED)
 set_target_properties(MNN PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/lib/libMNN.so)
+add_library(MNN_CL SHARED IMPORTED)
+set_target_properties(MNN_CL PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/lib/libMNN_CL.so)
+add_library(MNN_Express SHARED IMPORTED)
+set_target_properties(MNN_Express PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/lib/libMNN_Express.so)
 
-target_link_libraries(${PROJECT_NAME} ${log-lib} ${AUDIO_SEPARATION} MNN)
+target_link_libraries(${PROJECT_NAME} ${log-lib} ${AUDIO_SEPARATION} MNN MNN_CL MNN_Express)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    COMMAND ${CMAKE_STRIP} $<TARGET_FILE:${PROJECT_NAME}>)
